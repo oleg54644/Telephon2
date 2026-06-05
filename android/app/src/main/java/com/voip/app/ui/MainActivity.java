@@ -52,6 +52,13 @@ public class MainActivity extends AppCompatActivity {
             voipService = ((VoipService.LocalBinder) binder).getService();
             serviceBound = true;
             updateUI();
+            // Если сервис уже подключён до биндинга — сразу показываем номер
+            if (voipService.getMyNumber() != null) {
+                runOnUiThread(() -> {
+                    tvMyNumber.setText("Ваш номер: " + voipService.getMyNumber());
+                    tvServerStatus.setText("● Подключено");
+                });
+            }
         }
         @Override
         public void onServiceDisconnected(ComponentName name) {
@@ -67,10 +74,14 @@ public class MainActivity extends AppCompatActivity {
             if (action == null) return;
             switch (action) {
                 case VoipService.BROADCAST_REGISTERED:
+                    String num = intent.getStringExtra("number");
                     runOnUiThread(() -> {
-                        if (serviceBound && voipService != null) {
+                        if (num != null && !num.isEmpty()) {
+                            tvMyNumber.setText("Ваш номер: " + num);
+                        } else if (serviceBound && voipService != null && voipService.getMyNumber() != null) {
                             tvMyNumber.setText("Ваш номер: " + voipService.getMyNumber());
                         }
+                        tvServerStatus.setText("● Подключено");
                     });
                     break;
                 case VoipService.BROADCAST_CONNECTED:
