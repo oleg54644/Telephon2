@@ -9,8 +9,13 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.os.PowerManager;
+import android.provider.Settings;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.IBinder;
 import android.text.TextUtils;
 import android.view.View;
@@ -38,6 +43,16 @@ public class MainActivity extends AppCompatActivity {
     private Button btnCall, btnHangup, btnHistory;
 
     private VoipService voipService;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private final Runnable numberPoller = new Runnable() {
+        @Override public void run() {
+            if (serviceBound && voipService != null && voipService.getMyNumber() != null) {
+                tvMyNumber.setText("Ваш номер: " + voipService.getMyNumber());
+                tvServerStatus.setText("● Подключено");
+            }
+            uiHandler.postDelayed(this, 1000);
+        }
+    };
     private boolean serviceBound = false;
     private SharedPreferences prefs;
 
@@ -169,6 +184,20 @@ public class MainActivity extends AppCompatActivity {
 
         // Автоматически подключаемся к фиксированному серверу
         autoConnect();
+        requestBatteryOptimizationExemption();
+    }
+
+    private void requestBatteryOptimizationExemption() {
+        try {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                i.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            }
+        } catch (Exception e) {
+            // Игнорируем если нет разрешения
+        }
     }
 
     private void autoConnect() {
@@ -264,11 +293,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Каждый раз при выходе на передний план — проверяем номер
-        if (serviceBound && voipService != null && voipService.getMyNumber() != null) {
-            tvMyNumber.setText("Ваш номер: " + voipService.getMyNumber());
-            tvServerStatus.setText("● Подключено");
-        }
+        uiHandler.post(numberPoller);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        uiHandler.removeCallbacks(numberPoller);
     }
 
     @Override
