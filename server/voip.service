@@ -1,0 +1,16 @@
+[Unit]
+Description=VoIP Signaling Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/voip
+ExecStart=/usr/bin/python3 /opt/voip/server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1a1a2e"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📞 Входящий звонок"
+        android:textSize="22sp"
+        android:textColor="#aaaaaa"
+        android:gravity="center"
+        android:paddingBottom="24dp"/>
+
+    <TextView
+        android:id="@+id/tvCaller"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Звонит: —"
+        android:textSize="36sp"
+        android:textColor="#ffffff"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:paddingBottom="48dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <Button
+            android:id="@+id/btnDecline"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:text="📵 Отклонить"
+            android:textSize="16sp"
+            android:backgroundTint="#e74c3c"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btnAnswer"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:text="📞 Ответить"
+            android:textSize="16sp"
+            android:backgroundTint="#27ae60"
+            android:layout_marginStart="8dp"/>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1a1a2e">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Заголовок -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="GrinMain Телефон"
+                android:textSize="26sp"
+                android:textColor="#e0e0e0"
+                android:textStyle="bold"
+                android:gravity="center"/>
+
+            <Button
+                android:id="@+id/btnHistory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📋"
+                android:textSize="20sp"
+                android:backgroundTint="#2d2d44"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvServerStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="○ Подключение..."
+            android:textColor="#aaaaaa"
+            android:gravity="center"
+            android:paddingBottom="20dp"/>
+
+        <!-- Ваш номер -->
+        <TextView
+            android:id="@+id/tvMyNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ваш номер: —"
+            android:textSize="22sp"
+            android:textColor="#4a90d9"
+            android:gravity="center"
+            android:paddingBottom="20dp"/>
+
+        <!-- Имя пользователя -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ваше имя (отображается в истории)"
+            android:textColor="#cccccc"
+            android:paddingBottom="4dp"/>
+
+        <EditText
+            android:id="@+id/etMyName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Например: Олег"
+            android:textColor="#ffffff"
+            android:textColorHint="#888888"
+            android:background="#2d2d44"
+            android:padding="12dp"
+            android:inputType="textPersonName"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Набор номера -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Позвонить на номер"
+            android:textColor="#cccccc"
+            android:paddingBottom="4dp"/>
+
+        <EditText
+            android:id="@+id/etCallTo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="1234"
+            android:textColor="#ffffff"
+            android:textColorHint="#888888"
+            android:background="#2d2d44"
+            android:padding="12dp"
+            android:inputType="number"
+            android:textSize="24sp"
+            android:gravity="center"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnCall"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="📞 Позвонить"
+            android:textSize="18sp"
+            android:backgroundTint="#27ae60"/>
+
+        <Button
+            android:id="@+id/btnHangup"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="📵 Завершить"
+            android:textSize="18sp"
+            android:backgroundTint="#e74c3c"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Готов"
+            android:textColor="#aaaaaa"
+            android:gravity="center"
+            android:paddingTop="16dp"/>
+
+    </LinearLayout>
+</ScrollView>

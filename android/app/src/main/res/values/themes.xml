@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.VoIP" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#4a90d9</item>
+        <item name="colorPrimaryVariant">#2d6da8</item>
+        <item name="colorOnPrimary">#ffffff</item>
+        <item name="android:windowBackground">#1a1a2e</item>
+        <item name="android:statusBarColor">#0d0d1a</item>
+    </style>
+</resources>
