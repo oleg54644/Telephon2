@@ -120,7 +120,7 @@ public class VoipService extends Service implements SignalingClient.Listener {
     @Override
     public void onRegistered(String number) {
         myNumber = number;
-        broadcast(BROADCAST_REGISTERED, null, null);
+        broadcast(BROADCAST_REGISTERED, "number", number);
         updatePersistentNotification("Номер: " + number);
     }
 
