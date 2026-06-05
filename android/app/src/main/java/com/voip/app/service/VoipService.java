@@ -8,7 +8,14 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Build;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
+import android.os.SystemClock;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
@@ -49,6 +56,17 @@ public class VoipService extends Service implements SignalingClient.Listener {
     private PowerManager.WakeLock wakeLock;
 
     private String myNumber;
+    private final Handler watchdogHandler = new Handler(Looper.getMainLooper());
+    private static final long WATCHDOG_INTERVAL = 15_000L; // 15 секунд
+    private final Runnable watchdog = new Runnable() {
+        @Override public void run() {
+            if (signalingClient == null || !signalingClient.isOpen()) {
+                Log.i(TAG, "Watchdog: reconnecting...");
+                connectToServer();
+            }
+            watchdogHandler.postDelayed(this, WATCHDOG_INTERVAL);
+        }
+    };
     private String currentCallId;
     private boolean connected = false;
     private static final int UDP_PORT = 5004;
@@ -66,6 +84,8 @@ public class VoipService extends Service implements SignalingClient.Listener {
         createNotificationChannels();
         acquireWakeLock();
         audioEngine = new AudioEngine(UDP_PORT);
+        watchdogHandler.postDelayed(watchdog, WATCHDOG_INTERVAL);
+        registerNetworkCallback();
     }
 
     @Override
@@ -96,8 +116,10 @@ public class VoipService extends Service implements SignalingClient.Listener {
                 signalingClient = null;
             }
             signalingClient = new SignalingClient(SERVER_URL, UDP_PORT, this);
+            // Передаём сохранённый номер чтобы он не менялся
+            if (myNumber != null) signalingClient.setMyNumber(myNumber);
             signalingClient.connect();
-            Log.i(TAG, "Connecting to " + SERVER_URL);
+            Log.i(TAG, "Connecting to " + SERVER_URL + " (number=" + myNumber + ")");
         } catch (Exception e) {
             Log.e(TAG, "Connect failed: " + e.getMessage());
         }
@@ -307,6 +329,8 @@ public class VoipService extends Service implements SignalingClient.Listener {
 
     @Override
     public void onDestroy() {
+        watchdogHandler.removeCallbacks(watchdog);
+        unregisterNetworkCallback();
         if (signalingClient != null) signalingClient.disconnectGracefully();
         if (audioEngine != null) audioEngine.stopCall();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
