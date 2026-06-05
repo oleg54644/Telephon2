@@ -262,6 +262,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Каждый раз при выходе на передний план — проверяем номер
+        if (serviceBound && voipService != null && voipService.getMyNumber() != null) {
+            tvMyNumber.setText("Ваш номер: " + voipService.getMyNumber());
+            tvServerStatus.setText("● Подключено");
+        }
+    }
+
+    @Override
     public void onRequestPermissionsResult(int req, @NonNull String[] permissions, @NonNull int[] results) {
         super.onRequestPermissionsResult(req, permissions, results);
     }
