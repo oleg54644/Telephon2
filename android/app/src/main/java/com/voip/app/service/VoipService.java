@@ -26,21 +26,22 @@ public class VoipService extends Service implements SignalingClient.Listener {
     public static final int NOTIF_ID_PERSISTENT = 1;
     public static final int NOTIF_ID_CALL = 2;
 
-    // Intent actions
-    public static final String ACTION_ANSWER = "com.voip.ACTION_ANSWER";
-    public static final String ACTION_REJECT = "com.voip.ACTION_REJECT";
-    public static final String ACTION_HANGUP = "com.voip.ACTION_HANGUP";
-    public static final String EXTRA_CALL_ID = "call_id";
-    public static final String EXTRA_FROM = "from";
+    // ★ Фиксированный сервер — жёстко прописан здесь
+    private static final String SERVER_URL = "ws://45.128.204.171:8765";
 
-    // Broadcasts к UI
-    public static final String BROADCAST_REGISTERED = "com.voip.REGISTERED";
-    public static final String BROADCAST_INCOMING = "com.voip.INCOMING";
-    public static final String BROADCAST_RINGING = "com.voip.RINGING";
-    public static final String BROADCAST_ACCEPTED = "com.voip.ACCEPTED";
-    public static final String BROADCAST_REJECTED = "com.voip.REJECTED";
-    public static final String BROADCAST_ENDED = "com.voip.ENDED";
-    public static final String BROADCAST_CONNECTED = "com.voip.CONNECTED";
+    public static final String ACTION_ANSWER  = "com.voip.ACTION_ANSWER";
+    public static final String ACTION_REJECT  = "com.voip.ACTION_REJECT";
+    public static final String ACTION_HANGUP  = "com.voip.ACTION_HANGUP";
+    public static final String EXTRA_CALL_ID  = "call_id";
+    public static final String EXTRA_FROM     = "from";
+
+    public static final String BROADCAST_REGISTERED   = "com.voip.REGISTERED";
+    public static final String BROADCAST_INCOMING     = "com.voip.INCOMING";
+    public static final String BROADCAST_RINGING      = "com.voip.RINGING";
+    public static final String BROADCAST_ACCEPTED     = "com.voip.ACCEPTED";
+    public static final String BROADCAST_REJECTED     = "com.voip.REJECTED";
+    public static final String BROADCAST_ENDED        = "com.voip.ENDED";
+    public static final String BROADCAST_CONNECTED    = "com.voip.CONNECTED";
     public static final String BROADCAST_DISCONNECTED = "com.voip.DISCONNECTED";
 
     private SignalingClient signalingClient;
@@ -49,17 +50,15 @@ public class VoipService extends Service implements SignalingClient.Listener {
 
     private String myNumber;
     private String currentCallId;
-    private String serverUrl;
+    private boolean connected = false;
     private static final int UDP_PORT = 5004;
 
-    // Binder для биндинга из Activity
     private final IBinder binder = new LocalBinder();
     public class LocalBinder extends Binder {
         public VoipService getService() { return VoipService.this; }
     }
 
-    @Override
-    public IBinder onBind(Intent intent) { return binder; }
+    @Override public IBinder onBind(Intent intent) { return binder; }
 
     @Override
     public void onCreate() {
@@ -71,56 +70,49 @@ public class VoipService extends Service implements SignalingClient.Listener {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null) {
-            String action = intent.getAction();
-            if (action != null) {
-                switch (action) {
-                    case ACTION_ANSWER:
-                        answerCall(intent.getStringExtra(EXTRA_CALL_ID));
-                        return START_STICKY;
-                    case ACTION_REJECT:
-                        rejectCall(intent.getStringExtra(EXTRA_CALL_ID));
-                        return START_STICKY;
-                    case ACTION_HANGUP:
-                        hangup();
-                        return START_STICKY;
-                }
-                serverUrl = intent.getStringExtra("server_url");
+        // Обработка кнопок уведомления
+        if (intent != null && intent.getAction() != null) {
+            switch (intent.getAction()) {
+                case ACTION_ANSWER: answerCall(intent.getStringExtra(EXTRA_CALL_ID)); return START_STICKY;
+                case ACTION_REJECT: rejectCall(intent.getStringExtra(EXTRA_CALL_ID)); return START_STICKY;
+                case ACTION_HANGUP: hangup(); return START_STICKY;
             }
         }
 
         startForeground(NOTIF_ID_PERSISTENT, buildPersistentNotification("Подключение..."));
 
-        if (serverUrl != null) {
-            connectToServer(serverUrl);
+        // Подключаемся если ещё не подключены
+        if (signalingClient == null || !signalingClient.isOpen()) {
+            connectToServer();
         }
 
         return START_STICKY;
     }
 
-    private void connectToServer(String url) {
+    private void connectToServer() {
         try {
             if (signalingClient != null) {
                 signalingClient.disconnectGracefully();
+                signalingClient = null;
             }
-            signalingClient = new SignalingClient(url, UDP_PORT, this);
+            signalingClient = new SignalingClient(SERVER_URL, UDP_PORT, this);
             signalingClient.connect();
-            Log.i(TAG, "Connecting to " + url);
+            Log.i(TAG, "Connecting to " + SERVER_URL);
         } catch (Exception e) {
             Log.e(TAG, "Connect failed: " + e.getMessage());
         }
     }
 
-    // ─── SignalingClient.Listener ────────────────────────────────────────────
-
     @Override
     public void onConnected() {
+        connected = true;
         broadcast(BROADCAST_CONNECTED, null, null);
         updatePersistentNotification("Подключено");
     }
 
     @Override
     public void onDisconnected() {
+        connected = false;
         broadcast(BROADCAST_DISCONNECTED, null, null);
         updatePersistentNotification("Переподключение...");
     }
@@ -135,11 +127,8 @@ public class VoipService extends Service implements SignalingClient.Listener {
     @Override
     public void onIncomingCall(String callId, String from, String callerIp, int callerUdpPort) {
         currentCallId = callId;
-
-        // Показать уведомление с кнопками ответить/отклонить
         showIncomingCallNotification(callId, from);
 
-        // Запустить Activity поверх блокировки
         Intent ui = new Intent(this, IncomingCallActivity.class);
         ui.putExtra(EXTRA_CALL_ID, callId);
         ui.putExtra(EXTRA_FROM, from);
@@ -148,7 +137,6 @@ public class VoipService extends Service implements SignalingClient.Listener {
         ui.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
         startActivity(ui);
 
-        // Broadcast для UI
         Intent b = new Intent(BROADCAST_INCOMING);
         b.putExtra(EXTRA_CALL_ID, callId);
         b.putExtra(EXTRA_FROM, from);
@@ -168,7 +156,6 @@ public class VoipService extends Service implements SignalingClient.Listener {
 
     @Override
     public void onCallAccepted(String callId, String calleeIp, int calleeUdpPort) {
-        // Начать аудио
         audioEngine.startCall(calleeIp, calleeUdpPort);
         cancelCallNotification();
         Intent b = new Intent(BROADCAST_ACCEPTED);
@@ -196,17 +183,11 @@ public class VoipService extends Service implements SignalingClient.Listener {
         currentCallId = null;
     }
 
-    @Override
-    public void onIceCandidate(String callId, String candidate) {
-        // Для P2P через NAT (опционально)
-    }
+    @Override public void onIceCandidate(String callId, String candidate) {}
 
-    @Override
-    public void onError(String message) {
+    @Override public void onError(String message) {
         Log.e(TAG, "Signaling error: " + message);
     }
-
-    // ─── Публичные методы ────────────────────────────────────────────────────
 
     public void makeCall(String toNumber) {
         if (signalingClient != null && signalingClient.isOpen()) {
@@ -215,15 +196,11 @@ public class VoipService extends Service implements SignalingClient.Listener {
     }
 
     public void answerCall(String callId) {
-        if (signalingClient != null) {
-            signalingClient.answerCall(callId);
-        }
+        if (signalingClient != null) signalingClient.answerCall(callId);
     }
 
     public void rejectCall(String callId) {
-        if (signalingClient != null) {
-            signalingClient.rejectCall(callId);
-        }
+        if (signalingClient != null) signalingClient.rejectCall(callId);
         cancelCallNotification();
     }
 
@@ -239,21 +216,15 @@ public class VoipService extends Service implements SignalingClient.Listener {
     public String getMyNumber() { return myNumber; }
     public boolean isInCall() { return audioEngine.isRunning(); }
 
-    // ─── Уведомления ────────────────────────────────────────────────────────
-
     private void createNotificationChannels() {
         NotificationManager nm = getSystemService(NotificationManager.class);
 
         NotificationChannel persistent = new NotificationChannel(
-            CHANNEL_ID_PERSISTENT, "VoIP Статус",
-            NotificationManager.IMPORTANCE_LOW
-        );
+            CHANNEL_ID_PERSISTENT, "VoIP Статус", NotificationManager.IMPORTANCE_LOW);
         persistent.setDescription("Фоновое соединение");
 
         NotificationChannel calls = new NotificationChannel(
-            CHANNEL_ID_CALLS, "Входящие звонки",
-            NotificationManager.IMPORTANCE_HIGH
-        );
+            CHANNEL_ID_CALLS, "Входящие звонки", NotificationManager.IMPORTANCE_HIGH);
         calls.setDescription("Уведомления о звонках");
         calls.enableVibration(true);
         calls.setBypassDnd(true);
@@ -264,12 +235,11 @@ public class VoipService extends Service implements SignalingClient.Listener {
 
     private Notification buildPersistentNotification(String text) {
         Intent tap = new Intent(this, MainActivity.class);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, tap,
-            PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pi = PendingIntent.getActivity(this, 0, tap, PendingIntent.FLAG_IMMUTABLE);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID_PERSISTENT)
             .setSmallIcon(R.drawable.ic_phone)
-            .setContentTitle("VoIP")
+            .setContentTitle("GrinMain Телефон")
             .setContentText(text)
             .setContentIntent(pi)
             .setOngoing(true)
