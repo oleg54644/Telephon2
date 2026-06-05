@@ -336,4 +336,40 @@ public class VoipService extends Service implements SignalingClient.Listener {
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         super.onDestroy();
     }
+    private android.net.ConnectivityManager.NetworkCallback networkCallback;
+
+    private void registerNetworkCallback() {
+        try {
+            android.net.ConnectivityManager cm =
+                (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            android.net.NetworkRequest req = new android.net.NetworkRequest.Builder()
+                .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build();
+            networkCallback = new android.net.ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onAvailable(android.net.Network network) {
+                    Log.i(TAG, "Network available — checking connection");
+                    watchdogHandler.postDelayed(() -> {
+                        if (signalingClient == null || !signalingClient.isOpen()) {
+                            connectToServer();
+                        }
+                    }, 2000);
+                }
+            };
+            cm.registerNetworkCallback(req, networkCallback);
+        } catch (Exception e) {
+            Log.e(TAG, "NetworkCallback error: " + e.getMessage());
+        }
+    }
+
+    private void unregisterNetworkCallback() {
+        try {
+            if (networkCallback != null) {
+                android.net.ConnectivityManager cm =
+                    (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+                cm.unregisterNetworkCallback(networkCallback);
+            }
+        } catch (Exception ignored) {}
+    }
+
 }
