@@ -75,7 +75,13 @@ public class ActiveCallActivity extends AppCompatActivity {
         btnSpeaker = findViewById(R.id.btnSpeaker);
         btnMute = findViewById(R.id.btnMute);
 
-        tvPeer.setText(peerNumber != null ? peerNumber : "Звонок");
+        // Показываем номер + имя если есть
+        String peerName = getIntent().getStringExtra("peer_name");
+        if (peerName != null && !peerName.isEmpty()) {
+            tvPeer.setText(peerName + " (" + peerNumber + ")");
+        } else {
+            tvPeer.setText(peerNumber != null ? peerNumber : "Звонок");
+        }
 
         btnHangup.setOnClickListener(v -> {
             if (serviceBound) voipService.hangup();
@@ -115,3 +121,11 @@ public class ActiveCallActivity extends AppCompatActivity {
         super.onDestroy();
     }
 }
+
+
+
+
+
+
+
+
