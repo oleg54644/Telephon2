@@ -44,11 +44,7 @@ public class IncomingCallActivity extends AppCompatActivity {
         public void onReceive(Context ctx, Intent intent) {
             String action = intent.getAction();
             if (VoipService.BROADCAST_ACCEPTED.equals(action)) {
-                stopRingtone();
-                startActivity(new Intent(IncomingCallActivity.this, ActiveCallActivity.class)
-                    .putExtra(VoipService.EXTRA_CALL_ID, callId)
-                    .putExtra(VoipService.EXTRA_FROM, fromNumber));
-                finish();
+                // Уже обработано в btnAnswer
             } else if (VoipService.BROADCAST_ENDED.equals(action)
                     || VoipService.BROADCAST_REJECTED.equals(action)) {
                 stopRingtone();
@@ -77,11 +73,23 @@ public class IncomingCallActivity extends AppCompatActivity {
         Button btnAnswer = findViewById(R.id.btnAnswer);
         Button btnDecline = findViewById(R.id.btnDecline);
 
-        tvCaller.setText("Звонит: " + fromNumber);
+        String callerName = getIntent().getStringExtra("caller_name");
+        if (callerName != null && !callerName.isEmpty()) {
+            tvCaller.setText("Звонит: " + callerName + " (" + fromNumber + ")");
+        } else {
+            tvCaller.setText("Звонит: " + fromNumber);
+        }
 
         btnAnswer.setOnClickListener(v -> {
             stopRingtone();
             if (serviceBound) voipService.answerCall(callId);
+            // Сразу открываем экран звонка
+            String callerNameFinal = getIntent().getStringExtra("caller_name");
+            startActivity(new Intent(this, ActiveCallActivity.class)
+                .putExtra(VoipService.EXTRA_CALL_ID, callId)
+                .putExtra(VoipService.EXTRA_FROM, fromNumber)
+                .putExtra("peer_name", callerNameFinal));
+            finish();
         });
 
         btnDecline.setOnClickListener(v -> {
@@ -128,3 +136,4 @@ public class IncomingCallActivity extends AppCompatActivity {
         super.onDestroy();
     }
 }
+
