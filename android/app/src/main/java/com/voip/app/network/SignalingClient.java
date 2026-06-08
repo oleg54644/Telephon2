@@ -20,7 +20,7 @@ public class SignalingClient extends WebSocketClient {
 
     public interface Listener {
         void onRegistered(String number);
-        void onIncomingCall(String callId, String from, String callerIp, int callerUdpPort);
+        void onIncomingCall(String callId, String from, String callerName, String callerIp, int callerUdpPort);
         void onCallRinging(String callId, String to);
         void onCallAccepted(String callId, String calleeIp, int calleeUdpPort);
         void onCallRejected(String callId);
@@ -35,6 +35,8 @@ public class SignalingClient extends WebSocketClient {
     private final String serverUrl;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private String myNumber;
+    private String myName = "";
+    private String myDisplayName;
     private final int myUdpPort;
     private final AtomicBoolean intentionalClose = new AtomicBoolean(false);
     private int reconnectAttempts = 0;
@@ -72,16 +74,34 @@ public class SignalingClient extends WebSocketClient {
                     break;
                 case "incoming_call":
                     listener.onIncomingCall(
-                        msg.getString("call_id"), msg.getString("from"),
-                        msg.getString("caller_ip"), msg.getInt("caller_udp_port"));
+                        msg.getString("call_id"),
+                        msg.optInt("numeric_call_id", 0),
+                        msg.getString("from"),
+                        msg.optString("from_name", msg.getString("from")),
+                        msg.optString("relay_ip", "45.128.204.171"),
+                        msg.optInt("relay_udp_port", 5004));
+                    break;
+                case "call_started":
+                    listener.onCallStarted(
+                        msg.getString("call_id"),
+                        msg.optInt("numeric_call_id", 0),
+                        msg.optString("peer_name", ""),
+                        msg.optString("relay_ip", "45.128.204.171"),
+                        msg.optInt("relay_udp_port", 5004));
                     break;
                 case "call_ringing":
-                    listener.onCallRinging(msg.getString("call_id"), msg.getString("to"));
+                    listener.onCallRinging(msg.getString("call_id"),
+                        msg.optInt("numeric_call_id", 0),
+                        msg.getString("to"),
+                        msg.optString("to_name", msg.getString("to")));
                     break;
                 case "call_accepted":
                     listener.onCallAccepted(
                         msg.getString("call_id"),
-                        msg.getString("callee_ip"), msg.getInt("callee_udp_port"));
+                        msg.optInt("numeric_call_id", 0),
+                        msg.optString("peer_name", ""),
+                        msg.optString("relay_ip", "45.128.204.171"),
+                        msg.optInt("relay_udp_port", 5004));
                     break;
                 case "call_rejected":
                     listener.onCallRejected(msg.getString("call_id"));
@@ -132,6 +152,8 @@ public class SignalingClient extends WebSocketClient {
             msg.put("type", "register");
             msg.put("udp_port", udpPort);
             if (existingNumber != null) msg.put("number", existingNumber);
+            if (myDisplayName != null && !myDisplayName.isEmpty())
+                msg.put("display_name", myDisplayName);
             send(msg.toString());
         } catch (Exception e) { Log.e(TAG, e.getMessage()); }
     }
@@ -220,5 +242,12 @@ public class SignalingClient extends WebSocketClient {
     }
 
     public String getMyNumber() { return myNumber; }
+    public void setDisplayName(String name) { this.myDisplayName = name; }
     public void setMyNumber(String n) { this.myNumber = n; }
 }
+
+
+
+
+
+
