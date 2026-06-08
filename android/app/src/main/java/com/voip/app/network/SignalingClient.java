@@ -36,7 +36,6 @@ public class SignalingClient extends WebSocketClient {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private String myNumber;
     private String myName = "";
-    private String myDisplayName;
     private final int myUdpPort;
     private final AtomicBoolean intentionalClose = new AtomicBoolean(false);
     private int reconnectAttempts = 0;
@@ -56,7 +55,6 @@ public class SignalingClient extends WebSocketClient {
         reconnectAttempts = 0;
         listener.onConnected();
         register(myNumber, myUdpPort);
-        // Keepalive каждые 25 секунд
         keepaliveFuture = scheduler.scheduleAtFixedRate(this::sendKeepalive, 25, 25, TimeUnit.SECONDS);
     }
 
@@ -75,33 +73,21 @@ public class SignalingClient extends WebSocketClient {
                 case "incoming_call":
                     listener.onIncomingCall(
                         msg.getString("call_id"),
-                        msg.optInt("numeric_call_id", 0),
                         msg.getString("from"),
-                        msg.optString("from_name", msg.getString("from")),
-                        msg.optString("relay_ip", "45.128.204.171"),
-                        msg.optInt("relay_udp_port", 5004));
-                    break;
-                case "call_started":
-                    listener.onCallStarted(
-                        msg.getString("call_id"),
-                        msg.optInt("numeric_call_id", 0),
-                        msg.optString("peer_name", ""),
-                        msg.optString("relay_ip", "45.128.204.171"),
-                        msg.optInt("relay_udp_port", 5004));
+                        msg.optString("caller_name", ""),
+                        msg.optString("caller_ip", "45.128.204.171"),
+                        msg.optInt("caller_udp_port", 5004));
                     break;
                 case "call_ringing":
-                    listener.onCallRinging(msg.getString("call_id"),
-                        msg.optInt("numeric_call_id", 0),
-                        msg.getString("to"),
-                        msg.optString("to_name", msg.getString("to")));
+                    listener.onCallRinging(
+                        msg.getString("call_id"),
+                        msg.getString("to"));
                     break;
                 case "call_accepted":
                     listener.onCallAccepted(
                         msg.getString("call_id"),
-                        msg.optInt("numeric_call_id", 0),
-                        msg.optString("peer_name", ""),
-                        msg.optString("relay_ip", "45.128.204.171"),
-                        msg.optInt("relay_udp_port", 5004));
+                        msg.optString("callee_ip", "45.128.204.171"),
+                        msg.optInt("callee_udp_port", 5004));
                     break;
                 case "call_rejected":
                     listener.onCallRejected(msg.getString("call_id"));
@@ -128,13 +114,8 @@ public class SignalingClient extends WebSocketClient {
         Log.w(TAG, "Disconnected: code=" + code + " reason=" + reason);
         cancelKeepalive();
         listener.onDisconnected();
-
-        if (!intentionalClose.get()) {
-            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                scheduleReconnect();
-            } else {
-                Log.e(TAG, "Max reconnect attempts reached");
-            }
+        if (!intentionalClose.get() && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            scheduleReconnect();
         }
     }
 
@@ -144,16 +125,13 @@ public class SignalingClient extends WebSocketClient {
         if (e != null) listener.onError(e.getMessage());
     }
 
-    // ─── Отправка ─────────────────────────────────────────────────────────────
-
     private void register(String existingNumber, int udpPort) {
         try {
             JSONObject msg = new JSONObject();
             msg.put("type", "register");
             msg.put("udp_port", udpPort);
             if (existingNumber != null) msg.put("number", existingNumber);
-            if (myDisplayName != null && !myDisplayName.isEmpty())
-                msg.put("display_name", myDisplayName);
+            if (!myName.isEmpty()) msg.put("name", myName);
             send(msg.toString());
         } catch (Exception e) { Log.e(TAG, e.getMessage()); }
     }
@@ -215,9 +193,7 @@ public class SignalingClient extends WebSocketClient {
     }
 
     private void cancelKeepalive() {
-        if (keepaliveFuture != null && !keepaliveFuture.isDone()) {
-            keepaliveFuture.cancel(false);
-        }
+        if (keepaliveFuture != null && !keepaliveFuture.isDone()) keepaliveFuture.cancel(false);
     }
 
     private void scheduleReconnect() {
@@ -242,9 +218,20 @@ public class SignalingClient extends WebSocketClient {
     }
 
     public String getMyNumber() { return myNumber; }
-    public void setDisplayName(String name) { this.myDisplayName = name; }
     public void setMyNumber(String n) { this.myNumber = n; }
+    public void setMyName(String n) { this.myName = n != null ? n : ""; }
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
