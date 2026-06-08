@@ -116,8 +116,11 @@ public class VoipService extends Service implements SignalingClient.Listener {
                 signalingClient = null;
             }
             signalingClient = new SignalingClient(SERVER_URL, UDP_PORT, this);
-            // Передаём сохранённый номер чтобы он не менялся
             if (myNumber != null) signalingClient.setMyNumber(myNumber);
+            // Передаём сохранённое имя
+            android.content.SharedPreferences prefs =
+                getSharedPreferences("voip_prefs", MODE_PRIVATE);
+            signalingClient.setMyName(prefs.getString("my_name", ""));
             signalingClient.connect();
             Log.i(TAG, "Connecting to " + SERVER_URL + " (number=" + myNumber + ")");
         } catch (Exception e) {
@@ -147,13 +150,15 @@ public class VoipService extends Service implements SignalingClient.Listener {
     }
 
     @Override
-    public void onIncomingCall(String callId, String from, String callerIp, int callerUdpPort) {
+    @Override
+    public void onIncomingCall(String callId, String from, String callerName, String callerIp, int callerUdpPort) {
         currentCallId = callId;
-        showIncomingCallNotification(callId, from);
+        showIncomingCallNotification(callId, callerName != null && !callerName.isEmpty() ? callerName + " (" + from + ")" : from);
 
         Intent ui = new Intent(this, IncomingCallActivity.class);
         ui.putExtra(EXTRA_CALL_ID, callId);
         ui.putExtra(EXTRA_FROM, from);
+        ui.putExtra("caller_name", callerName);
         ui.putExtra("caller_ip", callerIp);
         ui.putExtra("caller_udp_port", callerUdpPort);
         ui.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
@@ -162,8 +167,7 @@ public class VoipService extends Service implements SignalingClient.Listener {
         Intent b = new Intent(BROADCAST_INCOMING);
         b.putExtra(EXTRA_CALL_ID, callId);
         b.putExtra(EXTRA_FROM, from);
-        b.putExtra("caller_ip", callerIp);
-        b.putExtra("caller_udp_port", callerUdpPort);
+        b.putExtra("caller_name", callerName);
         sendBroadcast(b);
     }
 
@@ -178,8 +182,15 @@ public class VoipService extends Service implements SignalingClient.Listener {
 
     @Override
     public void onCallAccepted(String callId, String calleeIp, int calleeUdpPort) {
-        audioEngine.startCall(calleeIp, calleeUdpPort);
+        // Запускаем аудио через relay сервер
+        int cid = callIdToInt(callId);
+        audioEngine.startCall(calleeIp, calleeUdpPort, cid);
         cancelCallNotification();
+        // Открываем экран активного звонка у ЗВОНЯЩЕГО
+        Intent ui = new Intent(this, ActiveCallActivity.class);
+        ui.putExtra(EXTRA_CALL_ID, callId);
+        ui.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(ui);
         Intent b = new Intent(BROADCAST_ACCEPTED);
         b.putExtra(EXTRA_CALL_ID, callId);
         sendBroadcast(b);
@@ -327,6 +338,15 @@ public class VoipService extends Service implements SignalingClient.Listener {
         wakeLock.acquire();
     }
 
+    private static int callIdToInt(String callId) {
+        try {
+            String[] parts = callId.split("-");
+            return (Integer.parseInt(parts[0]) * 10000 + Integer.parseInt(parts[1])) & 0x7FFFFFFF;
+        } catch (Exception e) {
+            return Math.abs(callId.hashCode()) & 0x7FFFFFFF;
+        }
+    }
+
     @Override
     public void onDestroy() {
         watchdogHandler.removeCallbacks(watchdog);
@@ -373,3 +393,9 @@ public class VoipService extends Service implements SignalingClient.Listener {
     }
 
 }
+
+
+
+
+
+
